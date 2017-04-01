@@ -139,6 +139,7 @@ void executeGet(struct request *r, int sock){
     //-----------------------GET FILE INFO----------------------//
     char *path = (char*) &r->rl.path;
     if (stat(path, &sb) == -1) {
+        printf("\nERROR STAT FUNC\n");
         perror("stat");
         exit(EXIT_FAILURE);
     }
@@ -174,7 +175,7 @@ void executeGet(struct request *r, int sock){
     getContentType(r, contentTypePtr);
 
     //---------------------PRINT COMPLETED RESPONSE HEADER---------------------//
-    unsigned char send_buffer[MAX_LEN];
+    char send_buffer[MAX_LEN];
     if(snprintf(send_buffer, MAX_LEN,
             "HTTP/1.1 %s\r\n"
                     "Date: %s\r\n"
@@ -187,22 +188,23 @@ void executeGet(struct request *r, int sock){
     }
     printf("  Response Header: \n%s\n", send_buffer);
     //---------------------SEND HEADER---------------------------------//
-    unsigned char *send_buffer_ptr = send_buffer;
+    char *send_buffer_ptr = send_buffer;
     int bytes_sent;
     do {
-        bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer)+1, 0);
+        bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer), 0);
         printf("  Sent %i bytes\n", bytes_sent);
         send_buffer_ptr += bytes_sent;
         printf("  Still have to send: %s \n", send_buffer_ptr);
     }while(bytes_sent < strlen(send_buffer));
 
     //---------------------SEND RESPONSE BODY--------------------------//
+    int total_bytes_sent = 0;
     while( !feof(sendFile) )
     {
-        int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
+        int numread = fread(send_buffer, sizeof(char), MAX_LEN, sendFile);
         if( numread < 1 ) break; // EOF or error
 
-        unsigned char *send_buffer_ptr = send_buffer;
+        char *send_buffer_ptr = send_buffer;
         do
         {
             int numsent = send(sock, send_buffer_ptr, numread, 0);
@@ -214,10 +216,14 @@ void executeGet(struct request *r, int sock){
 
             send_buffer_ptr += numsent;
             numread -= numsent;
+            total_bytes_sent += numsent;
         }
         while( numread > 0 );
     }
-    send(sock, send_buffer, strlen(send_buffer)+1, 0);
+
+    printf(" Total Bytes Sent: %i\n", total_bytes_sent);
+    //close(sock);
+    //send(sock, send_buffer, strlen(send_buffer)+1, 0);
 }
 
 void executeRequest(struct request *r, int sock){
