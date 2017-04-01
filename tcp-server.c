@@ -12,6 +12,7 @@
 #define BUFFER_MAX	1024
 void parseConfig(char *filename);
 
+void handle_sigchld(int sig);
 int create_server_socket(char* port, int protocol);
 void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr_len);
 
@@ -73,6 +74,7 @@ void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr
 		if (bytes_read == 0) {
 			printf("Peer disconnected\n");
 			close(sock);
+            exit(EXIT_SUCCESS);
 			return;
 		}
 		if (bytes_read < 0) {

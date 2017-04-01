@@ -111,7 +111,7 @@ void parseHeader(unsigned char buffer[BUFFER_MAX], struct request *r){
 void getContentType(struct request *r, char *contentType){
     printf("\nFIGURING CONTENT TYPE\n");
     char* extension;
-    char *c = strchr(r->rl.path,'.');
+    char *c = strchr(r->rl.path,'.'); //Find the '.' of the file extension.
     if(c){
         extension = (char*)malloc(sizeof(char)*strlen(c));
         strcpy(extension, c);
@@ -187,6 +187,7 @@ void executeGet(struct request *r, int sock){
         printf("sprintf Failed\n");
     }
     printf("  Response Header: \n%s\n", send_buffer);
+
     //---------------------SEND HEADER---------------------------------//
     char *send_buffer_ptr = send_buffer;
     int bytes_sent;
@@ -197,7 +198,7 @@ void executeGet(struct request *r, int sock){
         printf("  Still have to send: %s \n", send_buffer_ptr);
     }while(bytes_sent < strlen(send_buffer));
 
-    //---------------------SEND RESPONSE BODY--------------------------//
+    //---------------------SEND RESPONSE BODY/FILE--------------------------//
     int total_bytes_sent = 0;
     while( !feof(sendFile) )
     {
@@ -222,8 +223,6 @@ void executeGet(struct request *r, int sock){
     }
 
     printf(" Total Bytes Sent: %i\n", total_bytes_sent);
-    //close(sock);
-    //send(sock, send_buffer, strlen(send_buffer)+1, 0);
 }
 
 void executeRequest(struct request *r, int sock){

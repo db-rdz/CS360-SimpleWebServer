@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <bits/signum.h>
+#include <signal.h>
+#include <wait.h>
+#include <errno.h>
+#include <string.h>
+
 #define DEFAULT_PORT	"8090"
 #define DEFAULT_CONFIG	"http.conf"
 
@@ -10,8 +16,29 @@
 void usage(char* name);
 int init_tcp(char* path, char* port, int verbose);
 
+void my_sigchld_handler(int sig)
+{
+    printf("SIGNAL REAPER CALLED \n");
+    pid_t p;
+    int status;
 
+    while ((p=waitpid(-1, &status, WNOHANG)) != -1)
+    {
+        if(p==0){
+            break;
+        }
+       printf("REAPED CHILD PROCESS WITH ID: %i", p);
+    }
+}
 int main(int argc, char* argv[]) {
+
+    struct sigaction sa;
+
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = my_sigchld_handler;
+
+    sigaction(SIGCHLD, &sa, NULL);
+
 	char* port = NULL;
 	char* config_path = NULL;
 
