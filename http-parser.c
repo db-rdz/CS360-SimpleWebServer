@@ -17,21 +17,26 @@ char* concat(const char *s1, const char *s2)
 void sanitize_path(struct request *r){
     char host[255];
 
-    printf("-- Looking for the host's path --");
+    printf("\nLOOKING FOR HOST'S PATH:\n");
 
     //Find the location for the host in the config file variables.
-    for(int i = 0; i < header_index; i++){
-        printf("%s\n", parsing_request.hlines[i].key);
-        if(strcmp(parsing_request.hlines[i].key, "Host:")){
+    for(int i = 0; i < r->header_entries; i++){
+
+        if(strcmp(parsing_request.hlines[i].key, "Host:") == 0){
+            printf("  Found Host Key in Headers. Now searching for Key Hosts in config file\n");
+
             for(int j = 0; j < number_of_host_entries; j++){
-                if(strcmp(parsing_request.hlines[i].value, hosts[j].name)){
+                if(strstr(parsing_request.hlines[i].value, hosts[j].name)){
                     strcpy(host, hosts[j].value);
                     printf("  the location for the host is: %s \n", host);
+                    break;
                 }
             }
+
+            break;
         }
     }
-    if(strcmp(r->rl.path, "/")){
+    if(strcmp(r->rl.path, "/") == 0){
         strcpy(r->rl.path, concat(host, "/index.html"));
     }
     else{
@@ -40,8 +45,178 @@ void sanitize_path(struct request *r){
     printf("  Final path of file is: %s \n", r->rl.path);
 }
 
-unsigned char* isHeaderComplete(unsigned char buffer[BUFFER_MAX]){
-    return strstr(buffer,"\r\n\r\n");
+int isHeaderComplete(unsigned char buffer[BUFFER_MAX]){
+    char *endOfHeader = strstr(buffer,"\r\n\r\n");
+    if(endOfHeader){
+        *endOfHeader = '\0';
+        return 1;
+    }
+    return 0;
+}
+
+void parseRequestLine(char* currentLine){
+    struct request_line parsing_request_line; //
+    if (sscanf(currentLine, "%s %s %s",
+               parsing_request_line.type, parsing_request_line.path, parsing_request_line.http_v) == 3) {
+        first_line_read = 1;
+        parsing_request.rl = parsing_request_line;
+    }
+    else{
+        printf("INVALID REQUEST LINE\n");
+        return;
+    }
+}
+
+void parseHeaderLine(char* currentLine){
+    struct header parsing_header;
+    if (sscanf(currentLine, "%s %s", parsing_header.key, parsing_header.value) == 2) {
+        parsing_request.hlines[header_index++] = parsing_header;
+    }
+}
+
+void parseHeader(unsigned char buffer[BUFFER_MAX], struct request *r){
+
+    printf("\nPARSING HEADER\n");
+    char *currentLine = (char *)&buffer[0];
+
+    //READ LINE BY LINE
+    while(currentLine) {
+        char *nextLine = strstr(currentLine, "\r\n"); //Search for the string \r\n
+
+        if (!r->is_header_ready && !nextLine) {
+            strcpy(r->incompleteLine, currentLine);
+            r->fragmented_line_waiting = 1;
+            break;
+        } else {
+            if (nextLine) *nextLine = '\0';  // temporarily terminate the current line
+
+            if(r->fragmented_line_waiting){
+
+            }
+            if (!first_line_read) {
+                parseRequestLine(currentLine);
+            }
+            else {
+                parseHeaderLine(currentLine);
+            }
+
+            printf("  parsed the line: %s \n", currentLine);
+            if (nextLine) *nextLine = '\n';  // then restore newline-char, just to be tidy
+            currentLine = nextLine ? (nextLine + 2) : NULL;
+        }
+    }
+    parsing_request.header_entries = header_index;
+}
+
+void getContentType(struct request *r, char *contentType){
+    printf("\nFIGURING CONTENT TYPE\n");
+    char* extension;
+    char *c = strchr(r->rl.path,'.');
+    if(c){
+        extension = (char*)malloc(sizeof(char)*strlen(c));
+        strcpy(extension, c);
+        printf("  Found extension %s\n", extension);
+    }
+    if(++extension){
+        for(int i = 0; i < number_of_media_entries; i++){
+            if(strcmp(media[i].type, extension) == 0){
+                strcpy(contentType, media[i].value);
+                printf("  Found content type for extension: %s\n", contentType);
+                return;
+            }
+        }
+    }
+
+    printf("File has no extension. Setting content type to default: text/plain");
+    strcpy(contentType,"text/plain");
+    free(extension);
+}
+
+
+void executeGet(struct request *r, int sock){
+    printf("\nEVALUATING GET REQUEST\n");
+    struct stat sb;
+    //-----------------------GET FILE INFO----------------------//
+    char *path = (char*) &r->rl.path;
+    if (stat(path, &sb) == -1) {
+        perror("stat");
+        exit(EXIT_FAILURE);
+    }
+
+    //---------------------GET RESPONSE CODE--------------------//
+    char responseCode[32];
+    FILE* sendFile;
+    if ( ( sendFile = fopen( r->rl.path, "r" ) ) == NULL ) {
+            perror("fopen");
+             strcpy(responseCode,"404 Not Found");
+    }
+    else{
+        strcpy(responseCode,"200 OK");
+    }
+
+    //------------------------GET TIME--------------------------//
+    char timeString[40];
+    const struct tm *tm;
+    //strftime(timeString, sizeof(timeString), "%a, %d %b %Y %H:%M:%S %Z", tm);
+
+    //------------------------GET LAST MODIFIED TIME----------------//
+    char lastModified[40];
+    //strftime(lastModified, sizeof(lastModified), "%a, %d %b %Y %H:%M:%S %Z", sb.st_mtime);
+
+    //---------------------GET CONTENT TYPE---------------------//
+    char contentType[200];
+    char* contentTypePtr = (char*)&contentType;
+    getContentType(r, contentTypePtr);
+    printf("  Are you returning from getContType?\n");
+
+    //---------------------PRINT COMPLETED RESPONSE HEADER---------------------//
+    unsigned char send_buffer[MAX_LEN];
+    if(snprintf(send_buffer, MAX_LEN,
+            "HTTP/1.1 %s\r\n"
+                    "Date: %s\r\n"
+                    "Server: Sadam Husein\r\n"
+                    "Content-Type: %s\n"
+                    "Content-Length: %i\r\n"
+                    "Last-Modified: %s\r\n"
+                    "\r\n", responseCode, timeString, contentType, sb.st_size, lastModified)< 0){
+        printf("sprintf Failed\n");
+    }
+    printf("  Response Header: %s\n", send_buffer);
+    //---------------------SEND HEADER---------------------------------//
+    unsigned char *send_buffer_ptr = send_buffer;
+    int bytes_sent;
+    do {
+        bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer), 0);
+        send_buffer_ptr += bytes_sent;
+    }while(bytes_sent < strlen(send_buffer));
+
+//        while( !feof(sendFile) )
+//        {
+//            int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
+//            if( numread < 1 ) break; // EOF or error
+//
+//            unsigned char *send_buffer_ptr = send_buffer;
+//            do
+//            {
+//                int numsent = send(sock, send_buffer_ptr, numread, 0);
+//                if( numsent < 1 ) // 0 if disconnected, otherwise error
+//                {
+//
+//                    break; // timeout or error
+//                }
+//
+//                send_buffer_ptr += numsent;
+//                numread -= numsent;
+//            }
+//            while( numread > 0 );
+//        }
+        //send(sock, buffer, strlen(buffer)+1, 0);
+}
+
+void executeRequest(struct request *r, int sock){
+    if(strcmp(r->rl.type, "GET") == 0){
+        executeGet(r, sock);
+    }
 }
 
 void parseRequest(unsigned char buffer[BUFFER_MAX], struct request *r){

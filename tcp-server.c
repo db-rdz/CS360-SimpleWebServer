@@ -62,7 +62,7 @@ void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr
 	if (ret != 0) {
 		fprintf(stderr, "Failed in getnameinfo: %s\n", gai_strerror(ret));
 	}
-	printf("Got a connection from %s:%s\n", client_hostname, client_port);
+	printf("\nGot a connection from %s:%s\n", client_hostname, client_port);
 	//You gotta receive until you see the double carriage return
 	//After that you can check for content length and know if you are done or not.
     resetParsingHeader();
@@ -81,54 +81,51 @@ void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr
 		}
 
 		buffer[bytes_read] = '\0';
-		printf("received: %s\n", buffer);
+		printf("RECEIVED:\n  %s\n", buffer);
 
         struct request r;
 
-        unsigned char* headerEnd = isHeaderComplete(buffer);
-        if(headerEnd){
-            *headerEnd = '\0';
-            parseHeader();
+        if(isHeaderComplete(buffer)){
+            parsing_request.is_header_ready = 1;
+            parseHeader(buffer, &parsing_request);
+        }
+        else{
+            parseHeader(buffer, &parsing_request);
         }
 
-        parseRequest(buffer, &r);
-        //Concatenate www at the beginning or put /index if path is /
+
         sanitize_path(&parsing_request);
+        executeRequest(&parsing_request, sock);
 
         unsigned char send_buffer[MAX_LEN];
         FILE *sendFile;
 
-
-
-
-
-
-        if ( ( sendFile = fopen( parsing_request.rl.path, "r" ) ) == NULL ) {
-            perror("fopen");
-            return;
-        }
-
-        while( !feof(sendFile) )
-        {
-            int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
-            if( numread < 1 ) break; // EOF or error
-
-            unsigned char *send_buffer_ptr = send_buffer;
-            do
-            {
-                int numsent = send(sock, send_buffer_ptr, numread, 0);
-                if( numsent < 1 ) // 0 if disconnected, otherwise error
-                {
-
-                    break; // timeout or error
-                }
-
-                send_buffer_ptr += numsent;
-                numread -= numsent;
-            }
-            while( numread > 0 );
-        }
-        //send(sock, buffer, strlen(buffer)+1, 0);
+//        if ( ( sendFile = fopen( parsing_request.rl.path, "r" ) ) == NULL ) {
+//            perror("fopen");
+//            return;
+//        }
+//
+//        while( !feof(sendFile) )
+//        {
+//            int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
+//            if( numread < 1 ) break; // EOF or error
+//
+//            unsigned char *send_buffer_ptr = send_buffer;
+//            do
+//            {
+//                int numsent = send(sock, send_buffer_ptr, numread, 0);
+//                if( numsent < 1 ) // 0 if disconnected, otherwise error
+//                {
+//
+//                    break; // timeout or error
+//                }
+//
+//                send_buffer_ptr += numsent;
+//                numread -= numsent;
+//            }
+//            while( numread > 0 );
+//        }
+//        //send(sock, buffer, strlen(buffer)+1, 0);
 	}
 }
 

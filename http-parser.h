@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "config-parse.h"
+#include <dialog.h>
 
 #define BUFFER_MAX	1024
 
@@ -41,6 +43,7 @@ struct request{
     //FLAGS
     int is_header_ready;// Tells if the header is complete.
     int is_body_ready;  // Tells if the body is complete.
+    int fragmented_line_waiting;
 };
 
 //This tells the http parser if the first line being read if the first line of the request.
@@ -51,5 +54,11 @@ struct request parsing_request;
 
 
 void sanitize_path(struct request *r);
-unsigned char* isHeaderComplete(unsigned char buffer[BUFFER_MAX]);
+int isHeaderComplete(unsigned char buffer[BUFFER_MAX]);
+void parseRequestLine(char* currentLine);
+void parseHeaderLine(char* currentLine);
+void parseHeader(unsigned char buffer[BUFFER_MAX], struct request *r);
 void parseRequest(unsigned char buffer[BUFFER_MAX], struct request *r);
+
+void executeGet(struct request *r, int sock);
+void executeRequest(struct request *r, int sock);
