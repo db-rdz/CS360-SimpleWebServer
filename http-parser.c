@@ -156,18 +156,22 @@ void executeGet(struct request *r, int sock){
 
     //------------------------GET TIME--------------------------//
     char timeString[40];
-    const struct tm *tm;
-    //strftime(timeString, sizeof(timeString), "%a, %d %b %Y %H:%M:%S %Z", tm);
+    time_t rawtime;
+    struct tm * timeinfo;
+    time (&rawtime);
+    timeinfo = localtime (&rawtime);
+    strftime(timeString, sizeof(timeString), "%a, %d %b %Y %H:%M:%S %Z", timeinfo);
 
     //------------------------GET LAST MODIFIED TIME----------------//
     char lastModified[40];
-    //strftime(lastModified, sizeof(lastModified), "%a, %d %b %Y %H:%M:%S %Z", sb.st_mtime);
+    struct tm * mTime;
+    mTime = localtime (&sb.st_mtim);
+    strftime(lastModified, sizeof(lastModified), "%a, %d %b %Y %H:%M:%S %Z", mTime);
 
     //---------------------GET CONTENT TYPE---------------------//
     char contentType[200];
     char* contentTypePtr = (char*)&contentType;
     getContentType(r, contentTypePtr);
-    printf("  Are you returning from getContType?\n");
 
     //---------------------PRINT COMPLETED RESPONSE HEADER---------------------//
     unsigned char send_buffer[MAX_LEN];
@@ -181,36 +185,39 @@ void executeGet(struct request *r, int sock){
                     "\r\n", responseCode, timeString, contentType, sb.st_size, lastModified)< 0){
         printf("sprintf Failed\n");
     }
-    printf("  Response Header: %s\n", send_buffer);
+    printf("  Response Header: \n%s\n", send_buffer);
     //---------------------SEND HEADER---------------------------------//
     unsigned char *send_buffer_ptr = send_buffer;
     int bytes_sent;
     do {
-        bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer), 0);
+        bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer)+1, 0);
+        printf("  Sent %i bytes\n", bytes_sent);
         send_buffer_ptr += bytes_sent;
+        printf("  Still have to send: %s \n", send_buffer_ptr);
     }while(bytes_sent < strlen(send_buffer));
 
-//        while( !feof(sendFile) )
-//        {
-//            int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
-//            if( numread < 1 ) break; // EOF or error
-//
-//            unsigned char *send_buffer_ptr = send_buffer;
-//            do
-//            {
-//                int numsent = send(sock, send_buffer_ptr, numread, 0);
-//                if( numsent < 1 ) // 0 if disconnected, otherwise error
-//                {
-//
-//                    break; // timeout or error
-//                }
-//
-//                send_buffer_ptr += numsent;
-//                numread -= numsent;
-//            }
-//            while( numread > 0 );
-//        }
-        //send(sock, buffer, strlen(buffer)+1, 0);
+    //---------------------SEND RESPONSE BODY--------------------------//
+    while( !feof(sendFile) )
+    {
+        int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
+        if( numread < 1 ) break; // EOF or error
+
+        unsigned char *send_buffer_ptr = send_buffer;
+        do
+        {
+            int numsent = send(sock, send_buffer_ptr, numread, 0);
+            if( numsent < 1 ) // 0 if disconnected, otherwise error
+            {
+
+                break; // timeout or error
+            }
+
+            send_buffer_ptr += numsent;
+            numread -= numsent;
+        }
+        while( numread > 0 );
+    }
+    send(sock, send_buffer, strlen(send_buffer)+1, 0);
 }
 
 void executeRequest(struct request *r, int sock){

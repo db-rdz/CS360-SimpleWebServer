@@ -23,7 +23,7 @@ struct request_line {
 
 struct header{
     char key[256];
-    char value[512];
+    char value[1024];
 };
 
 struct request{
