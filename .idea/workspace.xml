@@ -12,10 +12,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f121ab86-5053-4f98-82c6-1203ebb0ff21" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/server" afterPath="$PROJECT_DIR$/server" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/http-parser.c" afterPath="$PROJECT_DIR$/http-parser.c" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/http-parser.h" afterPath="$PROJECT_DIR$/http-parser.h" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/tcp-server.c" afterPath="$PROJECT_DIR$/tcp-server.c" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/www/test.txt" afterPath="$PROJECT_DIR$/www/test.txt" />
     </list>
     <ignored path="$PROJECT_DIR$/cmake-build-debug/" />
@@ -73,11 +71,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="http-parser.h" pinned="false" current-in-tab="false">
+      <file leaf-file-name="http-parser.h" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/http-parser.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-646">
-              <caret line="18" column="30" lean-forward="false" selection-start-line="18" selection-start-column="30" selection-end-line="18" selection-end-column="30" />
+            <state relative-caret-position="280">
+              <caret line="14" column="18" lean-forward="false" selection-start-line="14" selection-start-column="18" selection-end-line="14" selection-end-column="18" />
               <folding>
                 <element signature="e#132#150#0" expanded="true" />
               </folding>
@@ -85,12 +83,14 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="http-parser.c" pinned="false" current-in-tab="true">
+      <file leaf-file-name="http-parser.c" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/http-parser.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="168" column="33" lean-forward="false" selection-start-line="168" selection-start-column="26" selection-end-line="168" selection-end-column="33" />
-              <folding />
+            <state relative-caret-position="1920">
+              <caret line="168" column="26" lean-forward="false" selection-start-line="168" selection-start-column="26" selection-end-line="168" selection-end-column="26" />
+              <folding>
+                <marker date="1491117997138" expanded="true" signature="1434:1576" ph="{...}" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -138,8 +138,8 @@
       <find>mTime = localtime (&amp;sb.st_mtim);</find>
       <find>var retmode</find>
       <find>responseFlag</find>
-      <find>not</find>
       <find>strcpy(&amp;r-&gt;rl.path</find>
+      <find>not</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -154,9 +154,9 @@
         <option value="$PROJECT_DIR$/cmake-build-debug/Makefile" />
         <option value="$PROJECT_DIR$/config-parse.c" />
         <option value="$PROJECT_DIR$/main.c" />
-        <option value="$PROJECT_DIR$/http-parser.h" />
         <option value="$PROJECT_DIR$/tcp-server.c" />
         <option value="$PROJECT_DIR$/http-parser.c" />
+        <option value="$PROJECT_DIR$/http-parser.h" />
       </list>
     </option>
   </component>
@@ -442,12 +442,12 @@
       <workItem from="1490843496233" duration="30782000" />
       <workItem from="1491018159864" duration="2515000" />
       <workItem from="1491031252459" duration="14110000" />
-      <workItem from="1491068640874" duration="15138000" />
+      <workItem from="1491068640874" duration="15611000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="62547000" />
+    <option name="totallyTimeSpent" value="63020000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="27" width="1366" height="741" extended-state="6" />
@@ -562,7 +562,9 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2300">
           <caret line="115" column="33" lean-forward="false" selection-start-line="115" selection-start-column="27" selection-end-line="115" selection-end-column="33" />
-          <folding />
+          <folding>
+            <marker date="1491117997138" expanded="true" signature="1434:1576" ph="{...}" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -626,7 +628,9 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2200">
           <caret line="110" column="22" lean-forward="false" selection-start-line="110" selection-start-column="22" selection-end-line="110" selection-end-column="22" />
-          <folding />
+          <folding>
+            <marker date="1491117997138" expanded="true" signature="1434:1576" ph="{...}" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -690,7 +694,9 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1940">
           <caret line="97" column="17" lean-forward="true" selection-start-line="97" selection-start-column="17" selection-end-line="97" selection-end-column="17" />
-          <folding />
+          <folding>
+            <marker date="1491117997138" expanded="true" signature="1434:1576" ph="{...}" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -777,21 +783,23 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/http-parser.h">
+    <entry file="file://$PROJECT_DIR$/http-parser.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-646">
-          <caret line="18" column="30" lean-forward="false" selection-start-line="18" selection-start-column="30" selection-end-line="18" selection-end-column="30" />
+        <state relative-caret-position="1920">
+          <caret line="168" column="26" lean-forward="false" selection-start-line="168" selection-start-column="26" selection-end-line="168" selection-end-column="26" />
           <folding>
-            <element signature="e#132#150#0" expanded="true" />
+            <marker date="1491117997138" expanded="true" signature="1434:1576" ph="{...}" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/http-parser.c">
+    <entry file="file://$PROJECT_DIR$/http-parser.h">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="168" column="33" lean-forward="false" selection-start-line="168" selection-start-column="26" selection-end-line="168" selection-end-column="33" />
-          <folding />
+        <state relative-caret-position="280">
+          <caret line="14" column="18" lean-forward="false" selection-start-line="14" selection-start-column="18" selection-end-line="14" selection-end-column="18" />
+          <folding>
+            <element signature="e#132#150#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

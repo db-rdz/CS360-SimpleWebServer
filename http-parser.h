@@ -12,6 +12,7 @@
 #include <time.h>
 #include "config-parse.h"
 #include <dialog.h>
+#include <errno.h>
 
 #define BUFFER_MAX	1024
 static const int NOT_IMPL = 1;

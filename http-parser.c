@@ -166,7 +166,7 @@ void buildResponseHeader(struct request *r, char *send_buffer){
     }
     else if ( ( sendFile = fopen( r->rl.path, "r" ) ) == NULL ) {
         perror("fopen");
-        if(!(sb.st_mode & S_IRUSR)){
+        if(errno == EACCES){
             strcpy(responseCode,"403 Forbidden");
             strcpy(r->rl.path, "www/forbidden.html");
         }else {
