@@ -15,7 +15,8 @@ char* concat(const char *s1, const char *s2)
 
 //This will add the right path depending on the host
 void sanitize_path(struct request *r){
-    char host[255];
+    //DEFAULT HOST
+    char host[255] = "www";
 
     printf("\nLOOKING FOR HOST'S PATH:\n");
 
@@ -54,6 +55,7 @@ int isHeaderComplete(unsigned char buffer[BUFFER_MAX]){
     return 0;
 }
 
+//TODO: Implement a way to send invalid response...
 void parseRequestLine(char* currentLine){
     struct request_line parsing_request_line; //
     if (sscanf(currentLine, "%s %s %s",
@@ -63,6 +65,10 @@ void parseRequestLine(char* currentLine){
     }
     else{
         printf("INVALID REQUEST LINE\n");
+        strcpy(parsing_request_line.type, "GET");
+        strcpy(parsing_request_line.path, "/invalid.html");
+        strcpy(parsing_request_line.type, "HTTP/1.1");
+        parsing_request.responseFlag = BAD_REQUEST;
         return;
     }
 }
@@ -106,6 +112,7 @@ void parseHeader(unsigned char buffer[BUFFER_MAX], struct request *r){
         }
     }
     parsing_request.header_entries = header_index;
+
 }
 
 void getContentType(struct request *r, char *contentType){
@@ -132,27 +139,49 @@ void getContentType(struct request *r, char *contentType){
     free(extension);
 }
 
-
-void executeGet(struct request *r, int sock){
-    printf("\nEVALUATING GET REQUEST\n");
+void buildResponseHeader(struct request *r, char *send_buffer){
     struct stat sb;
     //-----------------------GET FILE INFO----------------------//
     char *path = (char*) &r->rl.path;
     if (stat(path, &sb) == -1) {
-        printf("\nERROR STAT FUNC\n");
         perror("stat");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
+
 
     //---------------------GET RESPONSE CODE--------------------//
     char responseCode[32];
     FILE* sendFile;
-    if ( ( sendFile = fopen( r->rl.path, "r" ) ) == NULL ) {
-            perror("fopen");
-             strcpy(responseCode,"404 Not Found");
+
+    if(!r->responseFlag){
+        r->responseFlag = NO_ERROR;
+    }
+    if(r->responseFlag == NOT_IMPL){
+        strcpy(responseCode,"501 Not Implemented");
+        strcpy(r->rl.path, "www/notimplemented.html");
+    }
+    else if(r->responseFlag == BAD_REQUEST){
+        strcpy(responseCode,"400 Bad Request");
+        strcpy(r->rl.path, "www/badrequest.html");
+    }
+    else if ( ( sendFile = fopen( r->rl.path, "r" ) ) == NULL ) {
+        perror("fopen");
+        if(!(sb.st_mode & S_IRUSR)){
+            strcpy(responseCode,"403 Forbidden");
+            strcpy(r->rl.path, "www/forbidden.html");
+        }else {
+            strcpy(responseCode, "404 Not Found");
+            strcpy(r->rl.path, "www/notfound.html");
+            path = (char *) &r->rl.path;
+        }
     }
     else{
         strcpy(responseCode,"200 OK");
+    }
+
+    //RE-READ THE FILE IN CASE PATH CHANGED...
+    if (stat(path, &sb) == -1) {
+        perror("stat");
     }
 
     //------------------------GET TIME--------------------------//
@@ -166,7 +195,8 @@ void executeGet(struct request *r, int sock){
     //------------------------GET LAST MODIFIED TIME----------------//
     char lastModified[40];
     struct tm * mTime;
-    mTime = localtime (&sb.st_mtim);
+
+    mTime = localtime (&sb.st_mtime);
     strftime(lastModified, sizeof(lastModified), "%a, %d %b %Y %H:%M:%S %Z", mTime);
 
     //---------------------GET CONTENT TYPE---------------------//
@@ -175,30 +205,39 @@ void executeGet(struct request *r, int sock){
     getContentType(r, contentTypePtr);
 
     //---------------------PRINT COMPLETED RESPONSE HEADER---------------------//
-    char send_buffer[MAX_LEN];
+
     if(snprintf(send_buffer, MAX_LEN,
-            "HTTP/1.1 %s\r\n"
-                    "Date: %s\r\n"
-                    "Server: Sadam Husein\r\n"
-                    "Content-Type: %s\n"
-                    "Content-Length: %i\r\n"
-                    "Last-Modified: %s\r\n"
-                    "\r\n", responseCode, timeString, contentType, sb.st_size, lastModified)< 0){
+                "HTTP/1.1 %s\r\n"
+                        "Date: %s\r\n"
+                        "Server: Sadam Husein\r\n"
+                        "Content-Type: %s\n"
+                        "Content-Length: %ld\r\n"
+                        "Last-Modified: %s\r\n"
+                        "\r\n", responseCode, timeString, contentType, sb.st_size, lastModified)< 0){
         printf("sprintf Failed\n");
     }
     printf("  Response Header: \n%s\n", send_buffer);
+    resetParsingHeader();
+    resetParsingHeaderFlags();
+}
 
-    //---------------------SEND HEADER---------------------------------//
-    char *send_buffer_ptr = send_buffer;
+void sendResponseHeader(char *send_buffer, int sock){
     int bytes_sent;
+    char *send_buffer_ptr = send_buffer;
     do {
         bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer), 0);
         printf("  Sent %i bytes\n", bytes_sent);
         send_buffer_ptr += bytes_sent;
         printf("  Still have to send: %s \n", send_buffer_ptr);
     }while(bytes_sent < strlen(send_buffer));
+}
 
-    //---------------------SEND RESPONSE BODY/FILE--------------------------//
+void sendResponse(char *send_buffer, int sock, struct request *r){
+    FILE* sendFile;
+    if ( ( sendFile = fopen( r->rl.path, "r" ) ) == NULL ) {
+        perror("fopen");
+    }
+
     int total_bytes_sent = 0;
     while( !feof(sendFile) )
     {
@@ -225,8 +264,26 @@ void executeGet(struct request *r, int sock){
     printf(" Total Bytes Sent: %i\n", total_bytes_sent);
 }
 
+void executeGet(struct request *r, int sock){
+    printf("\nEVALUATING GET REQUEST\n");
+    char send_buffer[MAX_LEN];
+    buildResponseHeader(r, (char *)send_buffer);
+    //---------------------SEND HEADER---------------------------------//
+    //char *send_buffer_ptr = send_buffer;
+    sendResponseHeader((char *)send_buffer,sock);
+    //---------------------SEND RESPONSE BODY/FILE--------------------------//
+    sendResponse((char *)send_buffer, sock, r);
+}
+
 void executeRequest(struct request *r, int sock){
     if(strcmp(r->rl.type, "GET") == 0){
+        executeGet(r, sock);
+    }
+    else{
+        r->responseFlag = NOT_IMPL;
+        strcpy(r->rl.type, "GET");
+        strcpy(r->rl.path, "/notimplemented.html");
+        strcpy(r->rl.http_v, "HTTP/1.1");
         executeGet(r, sock);
     }
 }

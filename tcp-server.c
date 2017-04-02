@@ -44,6 +44,7 @@ void resetParsingHeader(){
     parsing_request.is_body_ready = 0;
     parsing_request.content_length = 0;
     parsing_request.parsed_body = 0;
+    parsing_request.responseFlag = 0;
 }
 
 void resetParsingHeaderFlags(){

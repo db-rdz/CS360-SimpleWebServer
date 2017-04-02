@@ -14,6 +14,10 @@
 #include <dialog.h>
 
 #define BUFFER_MAX	1024
+static const int NOT_IMPL = 1;
+static const int BAD_REQUEST = 2;
+static const int NO_ERROR = 0;
+
 
 struct request_line {
     char type[10];
@@ -44,6 +48,7 @@ struct request{
     int is_header_ready;// Tells if the header is complete.
     int is_body_ready;  // Tells if the body is complete.
     int fragmented_line_waiting;
+    int responseFlag;
 };
 
 //This tells the http parser if the first line being read if the first line of the request.
@@ -62,3 +67,8 @@ void parseRequest(unsigned char buffer[BUFFER_MAX], struct request *r);
 
 void executeGet(struct request *r, int sock);
 void executeRequest(struct request *r, int sock);
+
+
+//STAT FUNCTION DECLARATION:
+int stat(const char *path, struct stat *buf);
+ssize_t send(int s, const void *buf, size_t len, int flags);
