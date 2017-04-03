@@ -18,6 +18,8 @@
 static const int NOT_IMPL = 1;
 static const int BAD_REQUEST = 2;
 static const int NO_ERROR = 0;
+static const int DYNAMIC = 1;
+static const int NON_DYNAMIC = 0;
 
 
 struct request_line {
@@ -36,22 +38,30 @@ struct request{
     // CONTAINERS
     struct request_line rl;   //Contains the request line
     struct header hlines[512];//Contains all the header lines parsed.
+    struct header vars[128];  //Contains all the variables encoded in the request url.
     char contenttype[255];    //Contains
     char body[1024];          //Contains the body of the request.
     char incompleteLine[255]; //Contains any incomplete lines of body that couldn't fit in buffer.
+    char queryString[1024];
 
     //REQUEST INFO
     int parsed_body;    // The amount of bytes that we have in the body
     int content_length; // The total amount of bytes of the body
     int header_entries; // The total number of header entries parsed.
+    int vars_entries;   // The total number of variables.
+    int from;           // When request is byte ranged this tells you where it should start.
+    int to;             // And where it should end.
 
     //FLAGS
     int is_header_ready;// Tells if the header is complete.
     int is_body_ready;  // Tells if the body is complete.
     int fragmented_line_waiting;
-    int responseFlag;
+    int responseFlag;   // Tells you if there is any error with the request.
+    int dynamicContent; // Tells you if the content is dynamic.
+    int byte_range;     // Tells you if the request is byte ranged.
 };
 
+//-----------------------------HTTP REQUEST PARSER FLAGS---------------------------------//
 //This tells the http parser if the first line being read if the first line of the request.
 int first_line_read;
 int header_index;

@@ -76,7 +76,6 @@ void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr
 			printf("Peer disconnected\n");
 			close(sock);
             exit(EXIT_SUCCESS);
-			return;
 		}
 		if (bytes_read < 0) {
 			perror("recv");
@@ -93,42 +92,12 @@ void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr
             parseHeader(buffer, &parsing_request);
         }
         else{
+            //if the header isn't complete parse whatever you got and wait to receive more.
             parseHeader(buffer, &parsing_request);
+            continue;
         }
-
-
         sanitize_path(&parsing_request);
         executeRequest(&parsing_request, sock);
-
-        unsigned char send_buffer[MAX_LEN];
-        FILE *sendFile;
-
-//        if ( ( sendFile = fopen( parsing_request.rl.path, "r" ) ) == NULL ) {
-//            perror("fopen");
-//            return;
-//        }
-//
-//        while( !feof(sendFile) )
-//        {
-//            int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
-//            if( numread < 1 ) break; // EOF or error
-//
-//            unsigned char *send_buffer_ptr = send_buffer;
-//            do
-//            {
-//                int numsent = send(sock, send_buffer_ptr, numread, 0);
-//                if( numsent < 1 ) // 0 if disconnected, otherwise error
-//                {
-//
-//                    break; // timeout or error
-//                }
-//
-//                send_buffer_ptr += numsent;
-//                numread -= numsent;
-//            }
-//            while( numread > 0 );
-//        }
-//        //send(sock, buffer, strlen(buffer)+1, 0);
 	}
 }
 
