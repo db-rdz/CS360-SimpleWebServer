@@ -45,6 +45,11 @@ void resetParsingHeader(){
     parsing_request.content_length = 0;
     parsing_request.parsed_body = 0;
     parsing_request.responseFlag = 0;
+    parsing_request.dynamicContent = NON_DYNAMIC;
+    parsing_request.byte_range = 0;
+    parsing_request.is_header_parsed = 0;
+    parsing_request.is_body_parsed = 0;
+    parsing_request.fragmented_line_waiting = 0;
 }
 
 void resetParsingHeaderFlags(){
@@ -87,17 +92,30 @@ void handle_client(int sock, struct sockaddr_storage client_addr, socklen_t addr
 
         struct request r;
 
-        if(isHeaderComplete(buffer)){
+        if(isHeaderComplete(buffer) && !parsing_request.is_header_parsed){
             parsing_request.is_header_ready = 1;
             parseHeader(buffer, &parsing_request);
+            parsing_request.is_header_parsed = 1;
         }
-        else{
+        else if(!parsing_request.is_header_parsed){
             //if the header isn't complete parse whatever you got and wait to receive more.
             parseHeader(buffer, &parsing_request);
             continue;
         }
+
+        printf("PARSED HEADER. REQUEST TYPE: %s\n", parsing_request.rl.type);
+
+        if(parsing_request.rl.type[0] == 'P'){
+            parseBody(buffer, &parsing_request);
+            if(!parsing_request.is_body_parsed){
+                continue;
+            }
+        }
+
         sanitize_path(&parsing_request);
         executeRequest(&parsing_request, sock);
+        resetParsingHeader();
+        resetParsingHeaderFlags();
 	}
 }
 

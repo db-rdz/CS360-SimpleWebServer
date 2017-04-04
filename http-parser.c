@@ -19,7 +19,7 @@ void stripQueryString(struct request *r){
     char *queryString = strchr(r->rl.path, '?');
     char *path = (char*)&r->rl.path[0];
 
-    if(queryString){
+    if(queryString) {
         printf("\nSTRIPPING THE QUERY STRING FROM PATH\n");
         //TERMINATE STRING AT THE ? AND COPY THIS TO THE R PATH VARIABLE.
         strcpy(r->queryString, ++queryString);
@@ -29,23 +29,8 @@ void stripQueryString(struct request *r){
         strcpy(r->rl.path, path);
         printf("  Path without query string: %s\n", path);
         queryString = '?';
-
-
-
-//        do {
-//            if(char *nextVariable = strchr(currentVariable, '&')) {
-//                *nextVariable = '\0';
-//            }
-//            struct header variableValues;
-//            sscanf(currentVariable, "%s=%s", variableValues.key, variableValues.value);
-//            r->vars[r->vars_entries++] = variableValues;
-//            if(nextVariable) {
-//                *nextVariable = '&';
-//                nextVariable++;
-//            }
-//            currentVariable = nextVariable;
-//        } while(currentVariable);
     }
+
 }
 
 //This will add the right path depending on the host
@@ -86,6 +71,17 @@ int isHeaderComplete(unsigned char buffer[BUFFER_MAX]){
     char *endOfHeader = strstr(buffer,"\r\n\r\n");
     if(endOfHeader){
         *endOfHeader = '\0';
+        return 1;
+    }
+    return 0;
+}
+
+int isBodyComplete(unsigned char buffer[BUFFER_MAX]){
+    char *endOfHeader = strstr(buffer,"\n\r\n");
+    endOfHeader += 3;
+    char *endOfBody = strstr(endOfHeader,"\r\n");
+    if(endOfBody){
+        *endOfBody = '\0';
         return 1;
     }
     return 0;
@@ -167,12 +163,68 @@ void parseHeader(unsigned char buffer[BUFFER_MAX], struct request *r){
             }
 
             printf("  parsed the line: %s \n", currentLine);
-            if (nextLine) *nextLine = '\n';  // then restore newline-char, just to be tidy
+            if (nextLine) *nextLine = '\r';  // then restore newline-char, just to be tidy
             currentLine = nextLine ? (nextLine + 2) : NULL;
         }
     }
     parsing_request.header_entries = header_index;
+}
 
+void getBodyContentLength(struct request *r){
+    printf("\nEXTRACTING CONTENT LENGTH\n");
+
+    for(int i = 0; i < r->header_entries; i++){
+        if(strcmp(r->hlines[i].key,"Content-Length:")==0){
+            r->content_length = atoi(r->hlines[i].value);
+            printf("  Found content length Header of: %i\n", r->content_length);
+            return;
+        }
+    }
+    //INVALID REQUEST!
+    printf("No content length for POST method\n");
+    strcpy(r->rl.type, "GET");
+    strcpy(r->rl.path, "/invalid.html");
+    strcpy(r->rl.type, "HTTP/1.1");
+    r->responseFlag = BAD_REQUEST;
+}
+
+void parseBody(unsigned char buffer[BUFFER_MAX], struct request *r){
+    printf("\nPARSING REQUEST BODY\n");
+    getBodyContentLength(r);
+
+    char* bufferPointer = &buffer[0];
+    if(!r->fragmented_line_waiting){
+        bufferPointer += strlen(bufferPointer) + 4;
+        printf("  Skipped request header to: %s\n", bufferPointer);
+    }
+    else{
+        bufferPointer = &buffer[0];
+    }
+
+    if(strlen(bufferPointer) >= r->content_length){
+        strcpy(r->body, bufferPointer);
+        printf("  Found complete body: %s\n", bufferPointer);
+        r->is_body_parsed = 1;
+    }
+    else if(strlen(bufferPointer) != r->content_length){
+        strcpy(r->incompleteLine, bufferPointer);
+        printf("  Found fragmented body: %s\n", bufferPointer);
+        r->fragmented_line_waiting = 1;
+        return;
+    }
+    else if(r->fragmented_line_waiting = 1){
+        if(strlen(r->incompleteLine) + strlen(bufferPointer) != r->content_length){
+            strcat(r->incompleteLine, bufferPointer);
+            printf("  Added another portion to the fragmented body: %s\n", r->incompleteLine);
+            r->fragmented_line_waiting = 1;
+        }
+        else{
+            strcat(r->incompleteLine, bufferPointer);
+            strcpy(r->body, r->incompleteLine);
+            printf("  Completed the fragmented body: %s\n", r->body);
+            r->is_body_parsed = 1;
+        }
+    }
 }
 
 void getContentType(struct request *r, char *contentType){
@@ -285,13 +337,15 @@ void buildResponseHeader(struct request *r, char *send_buffer){
     getContentType(r, contentTypePtr);
 
     if(r->dynamicContent == DYNAMIC){
-        if(snprintf(send_buffer, MAX_LEN,
-                    "HTTP/1.1 %s\r\n", responseCode)< 0){
+        if (snprintf(send_buffer, MAX_LEN,
+                     "HTTP/1.1 %s\r\n"
+                             "Date: %s\r\n"
+                             "Server: Sadam Husein\r\n"
+                             "Last-Modified: %s\r\n"
+                             , responseCode, timeString, contentType, lastModified) < 0) {
             printf("sprintf Failed\n");
         }
         printf("  Response Header: \n%s\n", send_buffer);
-        resetParsingHeader();
-        resetParsingHeaderFlags();
         return;
     }
 
@@ -309,59 +363,116 @@ void buildResponseHeader(struct request *r, char *send_buffer){
     }
 
     printf("  Response Header: \n%s\n", send_buffer);
-    resetParsingHeader();
-    resetParsingHeaderFlags();
 }
 
+
+//TODO: THIS COULD BE RENAMED TO SEND STRING
 void sendResponseHeader(char *send_buffer, int sock){
     int bytes_sent;
     char *send_buffer_ptr = send_buffer;
     //--------------------LOOP UNTIL ALL BYTES ARE SENT-------------------//
     do {
         bytes_sent = send(sock, send_buffer_ptr, strlen(send_buffer), 0);
-        printf("  Sent %i bytes\n", bytes_sent);
+        printf("  Sent %i bytes of %i\n", bytes_sent, strlen(send_buffer));
         send_buffer_ptr += bytes_sent;
-        printf("  Still have to send: %s \n", send_buffer_ptr);
     }while(bytes_sent < strlen(send_buffer));
 }
 
+void getCGIResource(struct request *r, FILE** sendFile, int sock){
+    printf("\nRUNNING CGI FOR DYNAMIC CONTENT\n");
 
-void sendResponse(char *send_buffer, int sock, struct request *r){
-    if(r->dynamicContent == DYNAMIC){
-        pid_t pid;
+    pid_t pid = 0;
+    int pipefd[2];
+    char line[256];
+    int status;
+    struct stat sb;
 
-        if ((pid = fork()) != 0) { // if we're the parent
-            waitpid(pid, NULL, 0); // wait for program to exit
-            return;
+
+    pipe(pipefd);
+    if ((pid = fork()) != 0) { // if we're the parent
+        close(pipefd[1]);
+        waitpid(pid, NULL, 0); // wait for program to exit
+
+        int content_length = 0;
+
+        //-----------------------GET FILE INFO----------------------//
+        FILE* output = fdopen(pipefd[0], "r");
+
+        fstat(pipefd[0], &sb);
+
+        char* cgi_buffer = malloc(sizeof(char)*MAX_LEN);
+        char* cgi_buffer_start = cgi_buffer;
+        int cgi_string_size = 0;
+
+        while ( !feof(output) ) {
+            if ( ( cgi_buffer = (char *)realloc( cgi_buffer_start, ( sizeof(cgi_buffer_start) + BUFFER_MAX ) * sizeof( char ) ) ) == NULL ) {
+                close( output );
+                exit(EXIT_FAILURE);
+            }
+
+            int bytes_read = fread(cgi_buffer, sizeof(char), BUFFER_MAX, output);
+            cgi_string_size += bytes_read;
+            cgi_buffer += bytes_read;
+
+            if ( bytes_read < 0 ) {
+                perror(read);
+            }
         }
-        printf("Setting up dup2\n");
-        // dup2(sock, STDOUT_FILENO); // redirect STDOUT to client socket
-        // Set environment variables here
 
-        printf("Getting current working directory: \n");
-        char cwd[1024];
-        if (getcwd(cwd, sizeof(cwd)) != NULL) {
-            printf("    Current working dir: %s\n", cwd);
-        }
-        else {
-            perror("    getcwd() error\n");
-            return;
-        }
-        strcat(cwd, r->rl.path);
-        setenv("SERVER_SOFTWARE", "Sadam Husein", 1);
-        setenv("QUERY_STRING", r->queryString, 1);
-        setenv("PATH_TRANSLATED", cwd, 1);
-        char* args[] = { "/usr/bin/php-cgi7.0", cwd };
+        *cgi_buffer = '\0';
+        cgi_string_size -= 42; //CGI ADDS A HEADER. we need to subtract the header's length
 
-        // Launch program
-        execv(args[0], args);
+        printf("%s\n", cgi_buffer_start);
+        printf("Size : %i\n", cgi_string_size);
+
+
+        char contentHeader[100];
+        snprintf(contentHeader, sizeof(contentHeader),
+                             "Content-Length: %ld\r\n", cgi_string_size);
+
+        sendResponseHeader(&contentHeader, sock);
+        sendResponseHeader(cgi_buffer_start, sock);
         return;
     }
 
-    //---------------------------OPEN FILE------------------------------//
+    close(pipefd[0]);
+    printf("  Setting up dup2 to redirect output\n");
+    dup2(pipefd[1], STDOUT_FILENO); // pipefd[1] is the parent.
+    dup2(pipefd[1], STDERR_FILENO);
+
+
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        perror("    getcwd() error\n");
+        return;
+    }
+    strcat(cwd, "/");
+    strcat(cwd, r->rl.path);
+    setenv("SERVER_SOFTWARE", "Sadam Husein", 1);
+    setenv("QUERY_STRING", r->queryString, 1);
+    setenv("PATH_TRANSLATED", cwd, 1);
+
+    char* args[] = { "/usr/bin/php-cgi7.0", (char*)0 };
+
+    if(execv(args[0], args)){
+        perror("execv");
+        exit( EXIT_FAILURE );
+    }
+}
+
+void sendResponse(char *send_buffer, int sock, struct request *r){
+
+    printf("\nSENDING RESPONSE\n");
     FILE* sendFile;
-    if ( ( sendFile = fopen( r->rl.path, "r" ) ) == NULL ) {
-        perror("fopen");
+    if(r->dynamicContent == DYNAMIC){
+        getCGIResource(r, sendFile, sock);
+        return;
+    }
+    else {
+    //---------------------------OPEN FILE------------------------------//
+        if ((sendFile = fopen(r->rl.path, "r")) == NULL) {
+            perror("fopen");
+        }
     }
     //---------------------------SENDING FILE---------------------------//
     int total_bytes_sent = 0;
@@ -398,7 +509,7 @@ void sendResponse(char *send_buffer, int sock, struct request *r){
         }
         while( numread > 0 );
     }
-    printf(" Total Bytes Sent: %i\n", total_bytes_sent);
+    printf("  Total Bytes Sent: %i\n", total_bytes_sent);
 }
 
 void executeGet(struct request *r, int sock){
@@ -421,7 +532,7 @@ void executeHead(struct request *r, int sock){
 }
 
 void executePost(struct request *r, int sock){
-    printf("\nEVALUATING GET REQUEST\n");
+    printf("\nEVALUATING POST REQUEST\n");
     char send_buffer[MAX_LEN];
     buildResponseHeader(r, (char *)send_buffer);
     //---------------------SEND HEADER---------------------------------//
@@ -438,9 +549,10 @@ void executeRequest(struct request *r, int sock){
     else if(strcmp(r->rl.type, "HEAD") == 0){
         executeHead(r, sock);
     }
-//    else if(strcmp(r->rl.type, "POST") == 0){
-//        executeHead(r, sock);
-//    }
+    else if(strcmp(r->rl.type, "POST") == 0){
+        strcpy(r->queryString, r->body);
+        executePost(r, sock);
+    }
     else{
         r->responseFlag = NOT_IMPL;
         strcpy(r->rl.type, "GET");

@@ -41,7 +41,7 @@ struct request{
     struct header vars[128];  //Contains all the variables encoded in the request url.
     char contenttype[255];    //Contains
     char body[1024];          //Contains the body of the request.
-    char incompleteLine[255]; //Contains any incomplete lines of body that couldn't fit in buffer.
+    char incompleteLine[1024]; //Contains any incomplete lines of body that couldn't fit in buffer.
     char queryString[1024];
 
     //REQUEST INFO
@@ -55,6 +55,8 @@ struct request{
     //FLAGS
     int is_header_ready;// Tells if the header is complete.
     int is_body_ready;  // Tells if the body is complete.
+    int is_header_parsed;// Tells if the header is complete.
+    int is_body_parsed;  // Tells if the body is complete.
     int fragmented_line_waiting;
     int responseFlag;   // Tells you if there is any error with the request.
     int dynamicContent; // Tells you if the content is dynamic.
@@ -71,10 +73,15 @@ struct request parsing_request;
 
 void sanitize_path(struct request *r);
 int isHeaderComplete(unsigned char buffer[BUFFER_MAX]);
+int isBodyComplete(unsigned char buffer[BUFFER_MAX]);
+
 void parseRequestLine(char* currentLine);
 void parseHeaderLine(char* currentLine);
 void parseHeader(unsigned char buffer[BUFFER_MAX], struct request *r);
 void parseRequest(unsigned char buffer[BUFFER_MAX], struct request *r);
+void parseBody(unsigned char buffer[BUFFER_MAX], struct request *r);
+
+void getBodyContentLength(struct request *r);
 
 void executeGet(struct request *r, int sock);
 void executeRequest(struct request *r, int sock);
