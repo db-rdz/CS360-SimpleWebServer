@@ -7,6 +7,6 @@ set(SOURCE_FILES
         config-parse.c
         config-parse.h
         main.c
-        tcp-server.c http-parser.h http-parser.c.cpp)
+        tcp-server.c http-parser.h http-parser.c.cpp dialog.h)
 
 add_executable(server ${SOURCE_FILES})

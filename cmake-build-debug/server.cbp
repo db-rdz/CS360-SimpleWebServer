@@ -84,24 +84,6 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/config-parse.c">
-			<Option target="server"/>
-		</Unit>
-		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/config-parse.h">
-			<Option target="server"/>
-		</Unit>
-		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/http-parser.c.cpp">
-			<Option target="server"/>
-		</Unit>
-		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/http-parser.h">
-			<Option target="server"/>
-		</Unit>
-		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/main.c">
-			<Option target="server"/>
-		</Unit>
-		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/tcp-server.c">
-			<Option target="server"/>
-		</Unit>
 		<Unit filename="/home/benjamin/Documents/BYU/CS-360/Labs/server/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>

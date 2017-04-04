@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>
-#include <dialog.h>
 #include "http-parser.h"
 
 #define BUFFER_MAX	1024
